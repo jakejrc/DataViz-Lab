@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matplotlib实验室 - DataViz Lab</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        .CodeMirror { height: 300px; border-radius: 8px; font-size: 13px; }
+        .param-control { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+        .param-control label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+        .preset-btn { transition: all 0.2s; }
+        .preset-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .preset-btn.active { border: 3px solid #0d6efd; }
+        #plot-output { text-align: center; background: #fff; border-radius: 8px; min-height: 400px;
+                       display: flex; align-items: center; justify-content: center; }
+        #plot-output img { max-width: 100%; max-height: 500px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/"><i class="fas fa-chart-bar me-2"></i>DataViz Lab</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/"><i class="fas fa-home me-1"></i>首页</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/exercises"><i class="fas fa-code me-1"></i>代码练习</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/matplotlib_lab"><i class="fas fa-flask me-1"></i>可视化实验室</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/gallery"><i class="fas fa-images me-1"></i>图表画廊</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/data_clean"><i class="fas fa-broom me-1"></i>数据清洗</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <!-- 图表类型选择 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="mb-3"><i class="fas fa-palette me-2"></i>选择图表类型</h5>
+                        <div id="preset-buttons" class="d-flex flex-wrap justify-content-center gap-2">
+                            <!-- 动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 左侧：参数面板 -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <i class="fas fa-sliders-h me-2"></i>参数调节面板
+                    </div>
+                    <div class="card-body" id="param-panel">
+                        <p class="text-muted">请先选择图表类型</p>
+                    </div>
+                </div>
+                <!-- 生成的代码 -->
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-code me-2"></i>生成的代码</span>
+                        <button class="btn btn-sm btn-outline-primary" onclick="copyCode()">
+                            <i class="fas fa-copy me-1"></i>复制
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <textarea id="generated-code"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：预览区域 -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-eye me-2"></i>实时预览</span>
+                        <button class="btn btn-sm btn-success" onclick="runPreview()">
+                            <i class="fas fa-play me-1"></i>生成图表
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="plot-output">
+                            <div class="text-muted">
+                                <i class="fas fa-chart-area fa-3x mb-3"></i>
+                                <p>调节参数后点击"生成图表"预览效果</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script>
+        var editor = CodeMirror.fromTextArea(document.getElementById('generated-code'), {
+            mode: 'python', theme: 'dracula', lineNumbers: true, readOnly: true,
+            lineWrapping: true, indentUnit: 4
+        });
+
+        var presets = {};
+        var currentPreset = null;
+
+        // 加载预设
+        fetch('/api/matplotlib_presets')
+            .then(r => r.json())
+            .then(data => {
+                presets = data;
+                var html = '';
+                var icons = {scatter:'braille', line:'chart-line', bar:'chart-bar',
+                             pie:'chart-pie', boxplot:'box', heatmap:'th'};
+                for (var key in data) {
+                    html += '<button class="btn btn-outline-success preset-btn" onclick="selectPreset(\'' + key + '\')" id="preset-' + key + '">' +
+                            '<i class="fas fa-' + (icons[key]||'chart-area') + ' me-1"></i>' + data[key].name + '</button>';
+                }
+                document.getElementById('preset-buttons').innerHTML = html;
+            });
+
+        // 选择预设
+        function selectPreset(key) {
+            currentPreset = key;
+            var preset = presets[key];
+
+            // 初始化 paramValues，将布尔默认值转为 Python 字面量
+            paramValues = {};
+            for (var pname in preset.params) {
+                var def = preset.params[pname].default;
+                if (typeof def === 'boolean') {
+                    paramValues[pname] = def ? 'True' : 'False';
+                } else {
+                    paramValues[pname] = def;
+                }
+            }
+
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('preset-' + key).classList.add('active');
+
+            // 生成参数面板
+            var html = '';
+            for (var paramName in preset.params) {
+                var p = preset.params[paramName];
+                html += '<div class="param-control">';
+                html += '<label>' + paramName + '</label>';
+
+                if (p.type === 'range') {
+                    var step = p.step || 1;
+                    html += '<input type="range" class="form-range" min="' + p.min + '" max="' + p.max +
+                            '" step="' + step + '" value="' + p.default +
+                            '" onchange="updateParam(\'' + paramName + '\', this.value)" ' +
+                            'oninput="this.nextElementSibling.textContent=this.value">' +
+                            '<span class="badge bg-secondary">' + p.default + '</span>';
+                } else if (p.type === 'color') {
+                    html += '<input type="color" class="form-control form-control-color" value="' + p.default +
+                            '" onchange="updateParam(\'' + paramName + '\', this.value)">';
+                } else if (p.type === 'text') {
+                    html += '<input type="text" class="form-control form-control-sm" value="' + p.default +
+                            '" onchange="updateParam(\'' + paramName + '\', this.value)">';
+                } else if (p.type === 'select') {
+                    html += '<select class="form-select form-select-sm" onchange="updateParam(\'' + paramName + '\', this.value)">';
+                    p.options.forEach(function(opt) {
+                        html += '<option value="' + opt + '"' + (opt === p.default ? ' selected' : '') + '>' + opt + '</option>';
+                    });
+                    html += '</select>';
+                } else if (p.type === 'checkbox') {
+                    html += '<div class="form-check form-switch">' +
+                            '<input class="form-check-input" type="checkbox"' + (p.default ? ' checked' : '') +
+                            ' onchange="updateParam(\'' + paramName + '\', this.checked, event)">' +
+                            '<label class="form-check-label small">' + (p.default ? '开启' : '关闭') + '</label></div>';
+                }
+
+                html += '</div>';
+            }
+            document.getElementById('param-panel').innerHTML = html;
+
+            updateCode();
+        }
+
+        // 当前参数值
+        var paramValues = {};
+
+        // BUG FIX #6: 接收 event 参数，不用隐式 window.event
+        function updateParam(name, value, evt) {
+            // BUG FIX #5: checkbox 值转为 Python 布尔值
+            if (typeof value === 'boolean') {
+                paramValues[name] = value ? 'True' : 'False';
+            } else {
+                paramValues[name] = value;
+            }
+            // 更新checkbox label
+            var el = (evt || event || {}).target;
+            if (el && el.type === 'checkbox') {
+                el.nextElementSibling.textContent = value ? '开启' : '关闭';
+            }
+            updateCode();
+        }
+
+        function updateCode() {
+            if (!currentPreset) return;
+            var preset = presets[currentPreset];
+            var code = preset.code;
+
+            // 合并默认值和当前值
+            for (var paramName in preset.params) {
+                var val = paramValues[paramName];
+                if (val === undefined) {
+                    var def = preset.params[paramName].default;
+                    // BUG FIX: 布尔默认值转为 Python 字面量
+                    val = (typeof def === 'boolean') ? (def ? 'True' : 'False') : def;
+                }
+                var placeholder = '{' + paramName + '}';
+                while (code.indexOf(placeholder) !== -1) {
+                    code = code.replace(placeholder, val);
+                }
+            }
+            editor.setValue(code);
+        }
+
+        // 运行预览
+        function runPreview() {
+            var code = editor.getValue();
+            if (!code.trim()) return;
+
+            document.getElementById('plot-output').innerHTML = '<div class="text-info"><i class="fas fa-spinner fa-spin fa-2x"></i><p>生成中...</p></div>';
+
+            fetch('/api/run_code', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code: code})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.has_plot) {
+                    document.getElementById('plot-output').innerHTML = '<img src="data:image/png;base64,' + data.plot_data + '">';
+                } else if (data.error) {
+                    document.getElementById('plot-output').innerHTML = '<pre class="text-danger text-start p-3">' + escapeHtml(data.error) + '</pre>';
+                }
+            })
+            .catch(err => {
+                document.getElementById('plot-output').innerHTML = '<div class="text-danger">请求失败: ' + err + '</div>';
+            });
+        }
+
+        function copyCode() {
+            navigator.clipboard.writeText(editor.getValue()).then(function() {
+                alert('代码已复制到剪贴板！');
+            });
+        }
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

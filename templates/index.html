@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataViz Lab - 数据可视化辅助教学系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-bar me-2"></i>DataViz Lab
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link active" href="/"><i class="fas fa-home me-1"></i>首页</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/exercises"><i class="fas fa-code me-1"></i>代码练习</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/matplotlib_lab"><i class="fas fa-flask me-1"></i>可视化实验室</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/gallery"><i class="fas fa-images me-1"></i>图表画廊</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/data_clean"><i class="fas fa-broom me-1"></i>数据清洗</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero-section text-center text-white py-5">
+        <div class="container">
+            <h1 class="display-4 fw-bold mb-3">
+                <i class="fas fa-chart-line me-3"></i>DataViz Lab
+            </h1>
+            <p class="lead mb-4">Python数据分析与可视化 · 交互式辅助教学系统</p>
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <p class="mb-4">学 · 练 · 评 · 析 —— 一体化学习平台</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 功能模块 -->
+    <section class="py-5">
+        <div class="container">
+            <h2 class="text-center mb-5"><i class="fas fa-th-large me-2"></i>功能模块</h2>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="card feature-card h-100 text-center p-4">
+                        <div class="card-body">
+                            <div class="feature-icon bg-primary text-white rounded-circle mx-auto mb-3">
+                                <i class="fas fa-code fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">交互式代码练习</h5>
+                            <p class="card-text text-muted">Python语法、NumPy、Pandas在线练习，实时运行查看结果</p>
+                            <a href="/exercises" class="btn btn-outline-primary">开始练习</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="card feature-card h-100 text-center p-4">
+                        <div class="card-body">
+                            <div class="feature-icon bg-success text-white rounded-circle mx-auto mb-3">
+                                <i class="fas fa-flask fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">可视化实验室</h5>
+                            <p class="card-text text-muted">Matplotlib参数调色板，实时预览图表效果并生成代码</p>
+                            <a href="/matplotlib_lab" class="btn btn-outline-success">进入实验室</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="card feature-card h-100 text-center p-4">
+                        <div class="card-body">
+                            <div class="feature-icon bg-warning text-white rounded-circle mx-auto mb-3">
+                                <i class="fas fa-images fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">图表画廊</h5>
+                            <p class="card-text text-muted">15+种图表类型展示，配示例数据和完整代码</p>
+                            <a href="/gallery" class="btn btn-outline-warning">浏览画廊</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="card feature-card h-100 text-center p-4">
+                        <div class="card-body">
+                            <div class="feature-icon bg-danger text-white rounded-circle mx-auto mb-3">
+                                <i class="fas fa-broom fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">数据清洗工作台</h5>
+                            <p class="card-text text-muted">上传数据，自动检测重复值、缺失值、异常值</p>
+                            <a href="/data_clean" class="btn btn-outline-danger">开始清洗</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 课程章节 -->
+    <section class="bg-light py-5">
+        <div class="container">
+            <h2 class="text-center mb-5"><i class="fas fa-book me-2"></i>课程章节</h2>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card chapter-card">
+                        <div class="card-body">
+                            <h6 class="text-primary"><i class="fas fa-layer-group me-2"></i>基础工具</h6>
+                            <ul class="list-unstyled mb-0 small">
+                                <li><span class="badge bg-secondary me-2">Ch1</span>Python数据可视化概述</li>
+                                <li><span class="badge bg-secondary me-2">Ch2</span>Python概述</li>
+                                <li><span class="badge bg-secondary me-2">Ch3</span>NumPy数组与矩阵运算</li>
+                                <li><span class="badge bg-secondary me-2">Ch4</span>Pandas基础知识</li>
+                                <li><span class="badge bg-secondary me-2">Ch5</span>数据的读取与处理</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card chapter-card">
+                        <div class="card-body">
+                            <h6 class="text-success"><i class="fas fa-palette me-2"></i>可视化</h6>
+                            <ul class="list-unstyled mb-0 small">
+                                <li><span class="badge bg-secondary me-2">Ch6</span>Matplotlib数据可视化基础</li>
+                                <li><span class="badge bg-secondary me-2">Ch7</span>Seaborn绘制进阶图形</li>
+                                <li><span class="badge bg-secondary me-2">Ch8</span>pyecharts交互式绘图</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card chapter-card">
+                        <div class="card-body">
+                            <h6 class="text-danger"><i class="fas fa-trophy me-2"></i>综合实战</h6>
+                            <ul class="list-unstyled mb-0 small">
+                                <li><span class="badge bg-secondary me-2">Ch9</span>全国GDP数据分析</li>
+                                <li><span class="badge bg-secondary me-2">Ch10</span>天气与空气质量分析</li>
+                                <li><span class="badge bg-secondary me-2">Ch11</span>商品与药品销量分析</li>
+                                <li><span class="badge bg-secondary me-2">Ch12</span>订单与天猫数据分析</li>
+                                <li><span class="badge bg-secondary me-2">Ch13</span>期末考试</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-3">
+        <small>DataViz Lab - 数据可视化辅助教学系统 | Python数据分析与可视化课程</small>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

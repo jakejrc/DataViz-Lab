@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据清洗工作台 - DataViz Lab</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        .upload-zone { border: 3px dashed #dee2e6; border-radius: 12px; padding: 60px 20px;
+                       text-align: center; transition: all 0.3s; cursor: pointer; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: #0d6efd; background: #f0f7ff; }
+        .issue-card { border-left: 4px solid; padding: 12px; margin-bottom: 8px; border-radius: 4px; background: #f8f9fa; }
+        .issue-missing { border-color: #ffc107; }
+        .issue-duplicate { border-color: #dc3545; }
+        .issue-outlier { border-color: #17a2b8; }
+        .data-preview { max-height: 400px; overflow: auto; font-size: 13px; }
+        .data-preview table { font-size: 13px; }
+        .stat-card { text-align: center; padding: 15px; border-radius: 8px; }
+        .stat-card .stat-value { font-size: 2rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/"><i class="fas fa-chart-bar me-2"></i>DataViz Lab</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/"><i class="fas fa-home me-1"></i>首页</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/exercises"><i class="fas fa-code me-1"></i>代码练习</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/matplotlib_lab"><i class="fas fa-flask me-1"></i>可视化实验室</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/gallery"><i class="fas fa-images me-1"></i>图表画廊</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/data_clean"><i class="fas fa-broom me-1"></i>数据清洗</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <!-- 上传区域 -->
+        <div id="upload-section">
+            <h3 class="text-center mb-4"><i class="fas fa-broom me-2"></i>数据清洗工作台</h3>
+            <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">拖拽CSV/Excel文件到此处，或点击上传</h5>
+                <p class="text-muted small">支持 .csv / .xlsx / .xls 格式</p>
+                <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFile(this.files[0])">
+            </div>
+            <div class="text-center mt-3">
+                <button class="btn btn-outline-primary btn-sm" onclick="loadSampleData()">
+                    <i class="fas fa-database me-1"></i>加载示例数据（含问题数据）
+                </button>
+            </div>
+        </div>
+
+        <!-- 数据分析结果 -->
+        <div id="analysis-section" style="display:none">
+            <!-- 统计概览 -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card bg-primary text-white">
+                        <div class="stat-value" id="stat-rows">-</div>
+                        <div>总行数</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card bg-success text-white">
+                        <div class="stat-value" id="stat-cols">-</div>
+                        <div>总列数</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card bg-warning text-white">
+                        <div class="stat-value" id="stat-missing">-</div>
+                        <div>缺失值总数</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card bg-danger text-white">
+                        <div class="stat-value" id="stat-duplicates">-</div>
+                        <div>重复行数</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- 左侧：问题检测 -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <i class="fas fa-exclamation-triangle me-2"></i>检测到的问题
+                        </div>
+                        <div class="card-body" id="issues-panel">
+                            <!-- 动态生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 清洗操作 -->
+                    <div class="card mt-3">
+                        <div class="card-header bg-success text-white">
+                            <i class="fas fa-magic me-2"></i>一键清洗
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-warning" onclick="cleanDuplicates()">
+                                    <i class="fas fa-copy me-2"></i>去除重复行
+                                </button>
+                                <button class="btn btn-outline-info" onclick="cleanMissing()">
+                                    <i class="fas fa-fill-drip me-2"></i>填充缺失值(均值)
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="cleanOutliers()">
+                                    <i class="fas fa-filter me-2"></i>处理异常值(IQR)
+                                </button>
+                                <hr>
+                                <button class="btn btn-success" onclick="cleanAll()">
+                                    <i class="fas fa-broom me-2"></i>一键全部清洗
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="downloadCleaned()">
+                                    <i class="fas fa-download me-2"></i>下载清洗后数据
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：数据预览 -->
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-table me-2"></i>数据预览</span>
+                            <div>
+                                <span class="badge bg-secondary me-1" id="preview-info">显示前20行</span>
+                                <button class="btn btn-sm btn-outline-primary" onclick="showStats()">
+                                    <i class="fas fa-chart-bar me-1"></i>统计信息
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="data-preview" id="data-preview">
+                                <table class="table table-striped table-hover mb-0" id="data-table">
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 清洗日志 -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <i class="fas fa-history me-2"></i>清洗日志
+                        </div>
+                        <div class="card-body">
+                            <div id="clean-log" class="small" style="max-height:200px; overflow-y:auto;">
+                                <p class="text-muted">尚未进行任何清洗操作</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script>
+        var rawData = [];
+        var headers = [];
+        var cleanedData = [];
+        var logEntries = [];
+
+        // 拖拽上传
+        var dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('dragover'); });
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault(); dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file) return;
+            if (file.name.endsWith('.csv')) {
+                Papa.parse(file, {
+                    header: true, skipEmptyLines: true,
+                    complete: function(results) {
+                        headers = results.meta.fields;
+                        rawData = results.data;
+                        cleanedData = JSON.parse(JSON.stringify(rawData));
+                        showAnalysis();
+                    }
+                });
+            } else {
+                alert('目前仅支持CSV文件，请先用Excel另存为CSV格式');
+            }
+        }
+
+        function loadSampleData() {
+            // 生成含问题的示例数据
+            headers = ["姓名","部门","年龄","薪资","入职年份","绩效评分"];
+            rawData = [
+                {"姓名":"张三","部门":"技术部","年龄":"28","薪资":"15000","入职年份":"2020","绩效评分":"85"},
+                {"姓名":"李四","部门":"市场部","年龄":"32","薪资":"12000","入职年份":"2018","绩效评分":"78"},
+                {"姓名":"王五","部门":"技术部","年龄":"","薪资":"18000","入职年份":"2019","绩效评分":"92"},
+                {"姓名":"赵六","部门":"财务部","年龄":"45","薪资":"20000","入职年份":"2010","绩效评分":"88"},
+                {"姓名":"钱七","部门":"技术部","年龄":"26","薪资":"14000","入职年份":"2021","绩效评分":"75"},
+                {"姓名":"孙八","部门":"市场部","年龄":"29","薪资":"","入职年份":"2019","绩效评分":"82"},
+                {"姓名":"周九","部门":"人事部","年龄":"35","薪资":"13000","入职年份":"2017","绩效评分":"90"},
+                {"姓名":"吴十","部门":"技术部","年龄":"31","薪资":"16000","入职年份":"2019","绩效评分":"88"},
+                {"姓名":"张三","部门":"技术部","年龄":"28","薪资":"15000","入职年份":"2020","绩效评分":"85"},
+                {"姓名":"郑十一","部门":"市场部","年龄":"27","薪资":"11000","入职年份":"2021","绩效评分":"70"},
+                {"姓名":"王十二","部门":"财务部","年龄":"40","薪资":"22000","入职年份":"2012","绩效评分":"95"},
+                {"姓名":"李十三","部门":"技术部","年龄":"24","薪资":"13000","入职年份":"2022","绩效评分":"72"},
+                {"姓名":"赵十四","部门":"人事部","年龄":"33","薪资":"14000","入职年份":"2016","绩效评分":"86"},
+                {"姓名":"钱十五","部门":"市场部","年龄":"999","薪资":"10000","入职年份":"2022","绩效评分":"65"},
+                {"姓名":"孙十六","部门":"技术部","年龄":"30","薪资":"17000","入职年份":"2018","绩效评分":"91"},
+                {"姓名":"周十七","部门":"财务部","年龄":"38","薪资":"19000","入职年份":"2014","绩效评分":"87"},
+                {"姓名":"吴十八","部门":"市场部","年龄":"25","薪资":"11500","入职年份":"2021","绩效评分":"76"},
+                {"姓名":"郑十九","部门":"技术部","年龄":"29","薪资":"15500","入职年份":"2019","绩效评分":"83"},
+                {"姓名":"王二十","部门":"人事部","年龄":"36","薪资":"14500","入职年份":"2015","绩效评分":"89"},
+                {"姓名":"李四","部门":"市场部","年龄":"32","薪资":"12000","入职年份":"2018","绩效评分":"78"},
+            ];
+            cleanedData = JSON.parse(JSON.stringify(rawData));
+            showAnalysis();
+            addLog('加载示例数据: 20行 x 6列');
+        }
+
+        function showAnalysis() {
+            document.getElementById('upload-section').style.display = 'none';
+            document.getElementById('analysis-section').style.display = 'block';
+
+            // 统计
+            var totalRows = cleanedData.length;
+            var totalCols = headers.length;
+            var missingCount = 0;
+            var duplicateCount = 0;
+
+            cleanedData.forEach(function(row) {
+                headers.forEach(function(h) {
+                    if (!row[h] || row[h].trim() === '') missingCount++;
+                });
+            });
+
+            // 检测重复
+            var seen = new Set();
+            cleanedData.forEach(function(row) {
+                var key = JSON.stringify(row);
+                if (seen.has(key)) duplicateCount++;
+                seen.add(key);
+            });
+
+            document.getElementById('stat-rows').textContent = totalRows;
+            document.getElementById('stat-cols').textContent = totalCols;
+            document.getElementById('stat-missing').textContent = missingCount;
+            document.getElementById('stat-duplicates').textContent = duplicateCount;
+
+            // 问题面板
+            var issuesHtml = '';
+            if (missingCount > 0) {
+                issuesHtml += '<div class="issue-card issue-missing">' +
+                    '<i class="fas fa-exclamation-circle text-warning me-2"></i>' +
+                    '<strong>缺失值</strong>: 发现 ' + missingCount + ' 个空值</div>';
+            }
+            if (duplicateCount > 0) {
+                issuesHtml += '<div class="issue-card issue-duplicate">' +
+                    '<i class="fas fa-clone text-danger me-2"></i>' +
+                    '<strong>重复行</strong>: 发现 ' + duplicateCount + ' 行重复数据</div>';
+            }
+
+            // BUG FIX #9: 检测所有数值列的异常值(IQR方法)
+            var outlierCount = 0;
+            headers.forEach(function(h) {
+                var nums = cleanedData.map(function(r) { return parseFloat(r[h]); }).filter(function(n) { return !isNaN(n); });
+                if (nums.length < 4) return;
+                nums.sort(function(a,b){return a-b;});
+                var q1 = nums[Math.floor(nums.length * 0.25)];
+                var q3 = nums[Math.floor(nums.length * 0.75)];
+                var iqr = q3 - q1;
+                var lower = q1 - 1.5 * iqr;
+                var upper = q3 + 1.5 * iqr;
+                cleanedData.forEach(function(row) {
+                    var v = parseFloat(row[h]);
+                    if (!isNaN(v) && (v < lower || v > upper)) outlierCount++;
+                });
+            });
+            if (outlierCount > 0) {
+                issuesHtml += '<div class="issue-card issue-outlier">' +
+                    '<i class="fas fa-chart-line text-info me-2"></i>' +
+                    '<strong>异常值</strong>: 发现 ' + outlierCount + ' 条异常记录</div>';
+            }
+            if (!issuesHtml) issuesHtml = '<p class="text-success"><i class="fas fa-check-circle me-2"></i>未检测到明显问题！</p>';
+            document.getElementById('issues-panel').innerHTML = issuesHtml;
+
+            // 渲染表格
+            renderTable();
+        }
+
+        function renderTable() {
+            var html = '<thead class="table-dark"><tr><th>#</th>';
+            headers.forEach(function(h) { html += '<th>' + h + '</th>'; });
+            html += '</tr></thead><tbody>';
+
+            var showData = cleanedData.slice(0, 50);
+            showData.forEach(function(row, i) {
+                html += '<tr><td>' + (i+1) + '</td>';
+                headers.forEach(function(h) {
+                    var val = row[h] || '';
+                    var cls = '';
+                    if (val.trim() === '') cls = ' class="table-warning"';
+                    else {
+                        var num = parseFloat(val);
+                        if (!isNaN(num)) {
+                            var colNums = cleanedData.map(function(r) { return parseFloat(r[h]); }).filter(function(n) { return !isNaN(n); });
+                            if (colNums.length >= 4) {
+                                colNums.sort(function(a,b){return a-b;});
+                                var cq1 = colNums[Math.floor(colNums.length * 0.25)];
+                                var cq3 = colNums[Math.floor(colNums.length * 0.75)];
+                                var ciqr = cq3 - cq1;
+                                if (num < cq1 - 1.5 * ciqr || num > cq3 + 1.5 * ciqr) cls = ' class="table-danger"';
+                            }
+                        }
+                    }
+                    html += '<td' + cls + '>' + (val || '<span class="text-muted">NaN</span>') + '</td>';
+                });
+                html += '</tr>';
+            });
+            html += '</tbody>';
+            document.getElementById('data-table').innerHTML = html;
+            document.getElementById('preview-info').textContent = '共 ' + cleanedData.length + ' 行';
+        }
+
+        function cleanDuplicates() {
+            var before = cleanedData.length;
+            var seen = new Set();
+            var result = [];
+            cleanedData.forEach(function(row) {
+                var key = JSON.stringify(row);
+                if (!seen.has(key)) { seen.add(key); result.push(row); }
+            });
+            cleanedData = result;
+            var removed = before - cleanedData.length;
+            addLog('去除重复行: 移除 ' + removed + ' 行');
+            showAnalysis();
+        }
+
+        function cleanMissing() {
+            // 数值列用均值填充
+            headers.forEach(function(h) {
+                var nums = [];
+                cleanedData.forEach(function(row) {
+                    var v = parseFloat(row[h]);
+                    if (!isNaN(v)) nums.push(v);
+                });
+                if (nums.length > 0) {
+                    var mean = nums.reduce(function(a,b){return a+b;}, 0) / nums.length;
+                    cleanedData.forEach(function(row) {
+                        if (!row[h] || row[h].trim() === '') row[h] = mean.toFixed(1);
+                    });
+                } else {
+                    // 非数值列用众数填充
+                    var freq = {};
+                    cleanedData.forEach(function(row) {
+                        if (row[h] && row[h].trim()) freq[row[h]] = (freq[row[h]]||0) + 1;
+                    });
+                    var mode = Object.keys(freq).sort(function(a,b){return freq[b]-freq[a];})[0] || '';
+                    cleanedData.forEach(function(row) {
+                        if (!row[h] || row[h].trim() === '') row[h] = mode;
+                    });
+                }
+            });
+            addLog('填充缺失值: 使用均值/众数填充');
+            showAnalysis();
+        }
+
+        function cleanOutliers() {
+            var removed = 0;
+            headers.forEach(function(h) {
+                var nums = cleanedData.map(function(r) { return parseFloat(r[h]); }).filter(function(n) { return !isNaN(n); });
+                if (nums.length < 4) return;
+                nums.sort(function(a,b){return a-b;});
+                var q1 = nums[Math.floor(nums.length * 0.25)];
+                var q3 = nums[Math.floor(nums.length * 0.75)];
+                var iqr = q3 - q1;
+                var lower = q1 - 1.5 * iqr;
+                var upper = q3 + 1.5 * iqr;
+                cleanedData.forEach(function(row) {
+                    var v = parseFloat(row[h]);
+                    if (!isNaN(v) && (v < lower || v > upper)) {
+                        row[h] = '';
+                        removed++;
+                    }
+                });
+            });
+            addLog('处理异常值(IQR): 标记 ' + removed + ' 个异常值为缺失');
+            showAnalysis();
+        }
+
+        function cleanAll() {
+            cleanDuplicates();
+            cleanMissing();
+            cleanOutliers();
+            addLog('=== 一键全部清洗完成 ===');
+        }
+
+        function downloadCleaned() {
+            var csv = headers.join(',') + '\n';
+            cleanedData.forEach(function(row) {
+                csv += headers.map(function(h) { return '"' + (row[h]||'') + '"'; }).join(',') + '\n';
+            });
+            var blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8'});
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'cleaned_data.csv';
+            a.click();
+            addLog('下载清洗后数据');
+        }
+
+        function showStats() {
+            var html = '<h6>数值列统计:</h6><table class="table table-sm"><tr><th>列名</th><th>均值</th><th>标准差</th><th>最小</th><th>最大</th></tr>';
+            headers.forEach(function(h) {
+                var nums = cleanedData.map(function(r) { return parseFloat(r[h]); }).filter(function(n) { return !isNaN(n); });
+                if (nums.length > 0) {
+                    var mean = nums.reduce(function(a,b){return a+b;},0) / nums.length;
+                    var std = Math.sqrt(nums.reduce(function(a,b){return a+(b-mean)*(b-mean);},0) / nums.length);
+                    html += '<tr><td>' + h + '</td><td>' + mean.toFixed(2) + '</td><td>' + std.toFixed(2) +
+                            '</td><td>' + Math.min.apply(null, nums).toFixed(2) + '</td><td>' + Math.max.apply(null, nums).toFixed(2) + '</td></tr>';
+                }
+            });
+            html += '</table>';
+            alert(html.replace(/<[^>]*>/g, '\n').replace(/\n+/g, '\n'));
+        }
+
+        function addLog(msg) {
+            var time = new Date().toLocaleTimeString();
+            logEntries.unshift('<span class="text-muted">[' + time + ']</span> ' + msg);
+            document.getElementById('clean-log').innerHTML = logEntries.join('<br>');
+        }
+    </script>
+</body>
+</html>

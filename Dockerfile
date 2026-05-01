@@ -1,7 +1,7 @@
 FROM python:3.6-slim
 
-LABEL maintainer=jakejrc
-LABEL description=DataViz Lab - Data visualization teaching system
+LABEL maintainer="jakejrc"
+LABEL description="DataViz Lab - Data visualization teaching system"
 
 WORKDIR /app
 
@@ -21,4 +21,4 @@ EXPOSE 5000
 ENV FLASK_APP=app.py
 ENV PYTHONUNBUFFERED=1
 
-CMD [python, app.py]
+CMD ["python", "app.py"]

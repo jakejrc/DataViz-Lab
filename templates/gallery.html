@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图表画廊 - DataViz Lab</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        .gallery-card { transition: all 0.3s; cursor: pointer; }
+        .gallery-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .gallery-card .card-img-top { height: 200px; display: flex; align-items: center; justify-content: center;
+                                       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-size: 3rem; }
+        .code-modal .CodeMirror { height: 400px; font-size: 13px; }
+        .badge-chapter { font-size: 11px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/"><i class="fas fa-chart-bar me-2"></i>DataViz Lab</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/"><i class="fas fa-home me-1"></i>首页</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/exercises"><i class="fas fa-code me-1"></i>代码练习</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/matplotlib_lab"><i class="fas fa-flask me-1"></i>可视化实验室</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/gallery"><i class="fas fa-images me-1"></i>图表画廊</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/data_clean"><i class="fas fa-broom me-1"></i>数据清洗</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <h2 class="text-center mb-4"><i class="fas fa-images me-2"></i>图表画廊</h2>
+        <p class="text-center text-muted mb-5">每种图表配示例数据和完整代码，点击即可运行查看效果</p>
+
+        <!-- 分类筛选 -->
+        <div class="text-center mb-4">
+            <div class="btn-group" role="group">
+                <button class="btn btn-outline-primary active" onclick="filterGallery('all', event)">全部</button>
+                <button class="btn btn-outline-primary" onclick="filterGallery('basic', event)">基础图形</button>
+                <button class="btn btn-outline-primary" onclick="filterGallery('advanced', event)">高级图形</button>
+                <button class="btn btn-outline-primary" onclick="filterGallery('seaborn', event)">Seaborn</button>
+            </div>
+        </div>
+
+        <!-- 图表网格 -->
+        <div class="row g-4" id="gallery-grid"></div>
+    </div>
+
+    <!-- 代码查看模态框 -->
+    <div class="modal fade" id="codeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">图表代码</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body code-modal">
+                    <textarea id="modal-code"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-primary" onclick="copyModalCode()"><i class="fas fa-copy me-1"></i>复制代码</button>
+                    <button class="btn btn-success" onclick="runModalCode()"><i class="fas fa-play me-1"></i>运行</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 运行结果模态框 -->
+    <div class="modal fade" id="resultModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">运行结果</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center" id="result-body">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script>
+        var modalEditor;
+        var currentCode = '';
+
+        var galleryItems = [
+            {title: '散点图', icon: 'fa-braille', cat: 'basic', ch: 'Ch6',
+             desc: '分析两个变量之间的相关关系',
+             code: 'import matplotlib.pyplot as plt\nimport numpy as np\n\nnp.random.seed(42)\nx = np.random.randn(100)\ny = 2 * x + np.random.randn(100) * 0.5\n\nplt.figure(figsize=(8, 6))\nplt.scatter(x, y, c="#3498db", s=50, alpha=0.7, edgecolors="white")\nplt.title("散点图示例 - 相关性分析", fontsize=14)\nplt.xlabel("X变量")\nplt.ylabel("Y变量")\nplt.grid(True, alpha=0.3)\nplt.tight_layout()\nplt.show()'},
+            {title: '折线图', icon: 'fa-chart-line', cat: 'basic', ch: 'Ch6',
+             desc: '展示数据随时间的变化趋势',
+             code: 'import matplotlib.pyplot as plt\nimport numpy as np\n\nmonths = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"]\nsales_a = [120, 135, 148, 155, 170, 185, 190, 175, 160, 145, 138, 150]\nsales_b = [90, 105, 120, 130, 145, 160, 155, 140, 130, 120, 110, 125]\n\nplt.figure(figsize=(10, 6))\nplt.plot(months, sales_a, "o-", color="#e74c3c", linewidth=2, label="商家A")\nplt.plot(months, sales_b, "s--", color="#3498db", linewidth=2, label="商家B")\nplt.title("月度销售趋势对比", fontsize=14)\nplt.xlabel("月份")\nplt.ylabel("销售额(万元)")\nplt.legend()\nplt.grid(True, alpha=0.3)\nplt.xticks(rotation=45)\nplt.tight_layout()\nplt.show()'},
+            {title: '柱状图', icon: 'fa-chart-bar', cat: 'basic', ch: 'Ch6',
+             desc: '比较不同类别的数据大小',
+             code: 'import matplotlib.pyplot as plt\n\ncategories = ["Python", "Java", "C++", "JavaScript", "Go", "Rust"]\nscores = [92, 78, 72, 85, 65, 58]\ncolors = ["#3498db", "#e74c3c", "#2ecc71", "#f39c12", "#9b59b6", "#1abc9c"]\n\nplt.figure(figsize=(10, 6))\nbars = plt.bar(categories, scores, color=colors, edgecolor="white", linewidth=1.5)\nfor bar, score in zip(bars, scores):\n    plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,\n             str(score), ha="center", va="bottom", fontweight="bold")\nplt.title("编程语言热度排行", fontsize=14)\nplt.ylabel("热度指数")\nplt.ylim(0, 100)\nplt.grid(axis="y", alpha=0.3)\nplt.tight_layout()\nplt.show()'},
+            {title: '饼图', icon: 'fa-chart-pie', cat: 'basic', ch: 'Ch6',
+             desc: '展示各部分占整体的百分比',
+             code: 'import matplotlib.pyplot as plt\n\nlabels = ["Python", "Java", "C++", "JavaScript", "其他"]\nsizes = [35, 25, 15, 15, 10]\ncolors = ["#3498db", "#e74c3c", "#2ecc71", "#f39c12", "#9b59b6"]\nexplode = (0.08, 0, 0, 0, 0)\n\nplt.figure(figsize=(8, 8))\nplt.pie(sizes, explode=explode, labels=labels, colors=colors,\n        autopct="%1.1f%%", shadow=True, startangle=90,\n        textprops={"fontsize": 12})\nplt.title("编程语言市场份额", fontsize=14, fontweight="bold")\nplt.tight_layout()\nplt.show()'},
+            {title: '箱线图', icon: 'fa-box', cat: 'basic', ch: 'Ch6',
+             desc: '展示数据分布的统计特征',
+             code: 'import matplotlib.pyplot as plt\nimport numpy as np\n\nnp.random.seed(42)\ndata = [np.random.normal(0, std, 100) for std in [1, 2, 3, 4]]\nlabels = ["组A", "组B", "组C", "组D"]\n\nplt.figure(figsize=(8, 6))\nbp = plt.boxplot(data, patch_artist=True, labels=labels,\n                 boxprops=dict(facecolor="#3498db", color="#2c3e50"),\n                 medianprops=dict(color="#e74c3c", linewidth=2),\n                 whiskerprops=dict(color="#2c3e50"),\n                 capprops=dict(color="#2c3e50"))\nplt.title("数据分布箱线图", fontsize=14)\nplt.ylabel("值")\nplt.grid(axis="y", alpha=0.3)\nplt.tight_layout()\nplt.show()'},
+            {title: '堆叠柱状图', icon: 'fa-chart-bar', cat: 'basic', ch: 'Ch6',
+             desc: '展示各部分构成及总量对比',
+             code: 'import matplotlib.pyplot as plt\nimport numpy as np\n\ncategories = ["Q1", "Q2", "Q3", "Q4"]\nproduct_a = [45, 52, 58, 63]\nproduct_b = [35, 40, 45, 50]\nproduct_c = [20, 25, 30, 35]\n\nx = np.arange(len(categories))\nwidth = 0.5\n\nplt.figure(figsize=(10, 6))\nplt.bar(x, product_a, width, label="产品A", color="#3498db")\nplt.bar(x, product_b, width, bottom=product_a, label="产品B", color="#2ecc71")\nplt.bar(x, product_c, width, bottom=[a+b for a,b in zip(product_a, product_b)], label="产品C", color="#f39c12")\nplt.title("季度产品销售构成", fontsize=14)\nplt.xlabel("季度")\nplt.ylabel("销售额(万元)")\nplt.xticks(x, categories)\nplt.legend()\nplt.grid(axis="y", alpha=0.3)\nplt.tight_layout()\nplt.show()'},
+            {title: '子图布局', icon: 'fa-th', cat: 'basic', ch: 'Ch6',
+             desc: '在一个画布上展示多个图表',
+             code: 'import matplotlib.pyplot as plt\nimport numpy as np\n\nnp.random.seed(42)\nx = np.linspace(0, 10, 50)\n\nfig, axes = plt.subplots(2, 2, figsize=(12, 10))\n\naxes[0,0].plot(x, np.sin(x), "r-", linewidth=2)\naxes[0,0].set_title("sin(x)")\naxes[0,0].grid(True, alpha=0.3)\n\naxes[0,1].plot(x, np.cos(x), "b--", linewidth=2)\naxes[0,1].set_title("cos(x)")\naxes[0,1].grid(True, alpha=0.3)\n\naxes[1,0].scatter(np.random.randn(30), np.random.randn(30), c="#2ecc71", s=60)\naxes[1,0].set_title("散点图")\naxes[1,0].grid(True, alpha=0.3)\n\naxes[1,1].bar(["A","B","C","D"], [3,7,5,9], color=["#3498db","#e74c3c","#2ecc71","#f39c12"])\naxes[1,1].set_title("柱状图")\naxes[1,1].grid(axis="y", alpha=0.3)\n\nfig.suptitle("2x2 子图布局示例", fontsize=16, fontweight="bold")\nplt.tight_layout()\nplt.show()'},
+            {title: '热力图', icon: 'fa-th', cat: 'advanced', ch: 'Ch6',
+             desc: '用颜色深浅展示矩阵数据',
+             code: 'import matplotlib.pyplot as plt\nimport numpy as np\n\nnp.random.seed(42)\ndata = np.random.rand(8, 8)\nlabels = ["A","B","C","D","E","F","G","H"]\n\nplt.figure(figsize=(9, 7))\nplt.imshow(data, cmap="YlOrRd", interpolation="nearest")\ncbar = plt.colorbar()\ncbar.set_label("数值", fontsize=12)\nplt.xticks(range(8), labels)\nplt.yticks(range(8), labels)\nplt.title("热力图 - 相关性矩阵", fontsize=14)\n\nfor i in range(8):\n    for j in range(8):\n        plt.text(j, i, "%.2f" % data[i,j], ha="center", va="center", fontsize=9,\n                 color="white" if data[i,j] > 0.5 else "black")\n\nplt.tight_layout()\nplt.show()'},
+            {title: 'Seaborn关系图', icon: 'fa-chart-area', cat: 'seaborn', ch: 'Ch7',
+             desc: 'Seaborn风格的散点+回归线',
+             code: 'import seaborn as sns\nimport matplotlib.pyplot as plt\nimport pandas as pd\nimport numpy as np\n\nnp.random.seed(42)\ndf = pd.DataFrame({\n    "工作小时": np.random.uniform(20, 60, 80),\n    "满意度": np.random.uniform(1, 5, 80)\n})\ndf["满意度"] = 0.08 * df["工作小时"] + np.random.normal(0, 0.5, 80)\n\nsns.set_theme(style="whitegrid")\nplt.figure(figsize=(10, 6))\nsns.scatterplot(data=df, x="工作小时", y="满意度", color="#3498db", s=80, alpha=0.7)\nsns.regplot(data=df, x="工作小时", y="满意度", scatter=False, color="#e74c3c", line_kws={"linewidth":2})\nplt.title("工作小时 vs 满意度", fontsize=14)\nplt.tight_layout()\nplt.show()'},
+            {title: 'Seaborn箱线图', icon: 'fa-box', cat: 'seaborn', ch: 'Ch7',
+             desc: '分组数据分布对比',
+             code: 'import seaborn as sns\nimport matplotlib.pyplot as plt\nimport pandas as pd\nimport numpy as np\n\nnp.random.seed(42)\ndf = pd.DataFrame({\n    "部门": np.repeat(["技术部","市场部","财务部","人事部"], 25),\n    "薪资": np.concatenate([\n        np.random.normal(15000, 3000, 25),\n        np.random.normal(12000, 2500, 25),\n        np.random.normal(13000, 2000, 25),\n        np.random.normal(11000, 2000, 25)\n    ])\n})\n\nsns.set_theme(style="whitegrid")\nplt.figure(figsize=(10, 6))\nsns.boxplot(data=df, x="部门", y="薪资", palette="Set2")\nplt.title("各部门薪资分布", fontsize=14)\nplt.ylabel("薪资(元)")\nplt.tight_layout()\nplt.show()'},
+            {title: 'Seaborn热力图', icon: 'fa-th', cat: 'seaborn', ch: 'Ch7',
+             desc: '特征相关系数矩阵',
+             code: 'import seaborn as sns\nimport matplotlib.pyplot as plt\nimport pandas as pd\nimport numpy as np\n\nnp.random.seed(42)\ndf = pd.DataFrame({\n    "数学": np.random.randint(60, 100, 50),\n    "语文": np.random.randint(60, 100, 50),\n    "英语": np.random.randint(60, 100, 50),\n    "物理": np.random.randint(60, 100, 50),\n    "化学": np.random.randint(60, 100, 50)\n})\n\ncorr = df.corr()\n\nplt.figure(figsize=(8, 6))\nsns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm",\n            center=0, square=True, linewidths=1)\nplt.title("学科成绩相关系数矩阵", fontsize=14)\nplt.tight_layout()\nplt.show()'},
+            {title: '词云图', icon: 'fa-cloud', cat: 'advanced', ch: 'Ch8',
+             desc: '词频可视化展示',
+             code: 'from wordcloud import WordCloud\nimport matplotlib.pyplot as plt\n\ntext = "Python 数据 分析 可视化 编程 学习 机器学习 深度学习 人工智能 " * 20 +\n       "NumPy Pandas Matplotlib Seaborn pyecharts 数据科学 统计 " * 15 +\n       "算法 模型 训练 预测 分类 回归 聚类 特征工程 " * 10\n\nwc = WordCloud(\n    font_path=r"C:\Windows\Fonts\simhei.ttf",\n    width=800, height=400,\n    background_color="white",\n    max_words=100,\n    colormap="viridis",\n    max_font_size=100\n)\nwc.generate(text)\n\nplt.figure(figsize=(12, 6))\nplt.imshow(wc, interpolation="bilinear")\nplt.axis("off")\nplt.title("课程关键词词云", fontsize=16, fontweight="bold")\nplt.tight_layout()\nplt.show()'},
+        ];
+
+        function renderGallery(filter) {
+            var html = '';
+            galleryItems.forEach(function(item, i) {
+                if (filter !== 'all' && item.cat !== filter) return;
+                html += '<div class="col-md-4 col-lg-3 gallery-item" data-cat="' + item.cat + '">' +
+                    '<div class="card gallery-card h-100" onclick="showCode(' + i + ')">' +
+                    '<div class="card-img-top"><i class="fas ' + item.icon + '"></i></div>' +
+                    '<div class="card-body">' +
+                    '<h6 class="card-title">' + item.title + ' <span class="badge bg-secondary badge-chapter">' + item.ch + '</span></h6>' +
+                    '<p class="card-text small text-muted">' + item.desc + '</p>' +
+                    '</div></div></div>';
+            });
+            document.getElementById('gallery-grid').innerHTML = html;
+        }
+
+        function filterGallery(cat, evt) {
+            document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+            (evt || event).target.classList.add('active');
+            renderGallery(cat);
+        }
+
+        function showCode(index) {
+            currentCode = galleryItems[index].code;
+            document.getElementById('modalTitle').textContent = galleryItems[index].title + ' - 示例代码';
+            var modal = new bootstrap.Modal(document.getElementById('codeModal'));
+            modal.show();
+
+            setTimeout(function() {
+                if (!modalEditor) {
+                    modalEditor = CodeMirror.fromTextArea(document.getElementById('modal-code'), {
+                        mode: 'python', theme: 'dracula', lineNumbers: true,
+                        readOnly: false, lineWrapping: true, indentUnit: 4
+                    });
+                }
+                modalEditor.setValue(currentCode);
+                modalEditor.refresh();
+            }, 300);
+        }
+
+        function runModalCode() {
+            var code = modalEditor ? modalEditor.getValue() : currentCode;
+            fetch('/api/run_code', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code: code})
+            })
+            .then(r => r.json())
+            .then(data => {
+                var resultHtml = '';
+                if (data.has_plot) {
+                    resultHtml = '<img src="data:image/png;base64,' + data.plot_data + '" class="img-fluid">';
+                }
+                if (data.output) {
+                    resultHtml += '<pre class="text-start mt-3 bg-light p-3 rounded">' + escapeHtml(data.output) + '</pre>';
+                }
+                if (data.error) {
+                    resultHtml = '<pre class="text-danger text-start p-3">' + escapeHtml(data.error) + '</pre>';
+                }
+                document.getElementById('result-body').innerHTML = resultHtml;
+                var resultModal = new bootstrap.Modal(document.getElementById('resultModal'));
+                resultModal.show();
+            });
+        }
+
+        function copyModalCode() {
+            var code = modalEditor ? modalEditor.getValue() : currentCode;
+            navigator.clipboard.writeText(code).then(function() { alert('代码已复制！'); });
+        }
+
+        function escapeHtml(t) { var d = document.createElement('div'); d.appendChild(document.createTextNode(t)); return d.innerHTML; }
+
+        renderGallery('all');
+    </script>
+</body>
+</html>

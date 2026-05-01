@@ -10,20 +10,30 @@
 
 ## 📸 界面预览
 
+> **注**：界面截图将在后续更新中添加，当前可本地运行查看效果。
+
 ### 首页
-![首页](screenshots/homepage.png)
+- 功能导航：代码练习、可视化实验室、图表画廊、数据清洗工作台
+- 课程信息展示
 
 ### 代码练习
-![代码练习](screenshots/exercises.png)
+- 4 章节 12 道练习题
+- 内置代码编辑器（CodeMirror）
+- 一键运行，实时查看输出
 
-### 可视化实验室（Matplotlib）
-![Matplotlib Lab](screenshots/matplotlib_lab.png)
+### 可视化实验室
+- 6 种 Matplotlib 图表类型
+- 实时参数调节（滑块、颜色选择器、下拉框）
+- 代码与图表同步更新
 
 ### 图表画廊
-![图表画廊](screenshots/gallery.png)
+- 12 个预设图表（含 Seaborn 高级图表、词云）
+- 一键生成示例
 
 ### 数据清洗工作台
-![数据清洗](screenshots/data_clean.png)
+- CSV 文件上传
+- 自动检测缺失值、重复值、异常值
+- 数据预览与下载
 
 ---
 
@@ -89,19 +99,21 @@
 
 ## 🚀 快速开始
 
-### 安装依赖
+### 本地部署
+
+#### 安装依赖
 ```bash
 pip install flask numpy pandas matplotlib seaborn wordcloud jinja2
 ```
 
-### 启动服务
+#### 启动服务
 ```bash
 python app.py
 ```
 
 浏览器打开：**http://localhost:5000**
 
-### 使用 Docker（推荐）
+#### 使用 Docker（推荐）
 ```bash
 docker run -p 5000:5000 jakejrc/dataviz-lab:v1.0
 ```
@@ -132,6 +144,7 @@ docker run -p 5000:5000 jakejrc/dataviz-lab:v1.0
 ```
 DataViz-Lab/
 ├── app.py                  # Flask 主应用
+├── Dockerfile              # Docker 镜像定义
 ├── run_dataviz_lab.bat    # Windows 启动脚本
 ├── static/
 │   ├── css/style.css      # 样式文件
@@ -180,12 +193,6 @@ docker run -d -p 5000:5000 --name dataviz-lab jakejrc/dataviz-lab:v1.0
 ## 📄 许可证
 
 MIT License — 详见 [LICENSE](LICENSE) 文件。
-
----
-
-## 🙏 致谢
-
-感谢姜荣博士提供的课程内容和教学需求。
 
 ---
 
